@@ -120,6 +120,6 @@ required-features = [
     "bevy/bevy_picking",
 ]
 
-[workspace]
-resolver = "2"
-members = [".", "benchmarks/"]
+# [workspace]
+# resolver = "2"
+# members = [".", "benchmarks/"]
