@@ -1,4 +1,58 @@
-use bevy::prelude::*;
+use bevy::{platform::collections::HashMap, prelude::*};
+
+use std::any::TypeId;
+use std::time::Duration;
+
+/// Resource storing time functions to support multiple `Time` variants in animations.
+#[derive(Resource, Clone)]
+pub struct TweenTime {
+    functions: HashMap<TypeId, fn(&mut World) -> Duration>,
+}
+
+impl Default for TweenTime {
+    fn default() -> Self {
+        let mut time = Self {
+            functions: HashMap::new(),
+        };
+        time.register::<()>();
+        time
+    }
+}
+
+impl TweenTime {
+    /// Retrieve the delta time for all registered time types.
+    pub fn get_all(world: &mut World) -> HashMap<TypeId, Duration> {
+        let tween_time = world.get_resource::<TweenTime>().cloned().unwrap();
+    
+        let mut deltas = HashMap::new();
+
+        for (type_id, func) in  tween_time.functions {
+            deltas.insert(type_id, func(world));
+        }
+
+        deltas
+    }
+
+    /// Register a new time type to be used by animations.
+    pub fn register<T: Send + Sync + 'static + Default>(&mut self) {
+        self.functions.insert(TypeId::of::<T>(), |world: &mut World| {
+            world.get_resource::<Time<T>>().map(|t| t.delta()).unwrap_or(Duration::ZERO)
+        });
+    }
+}
+
+/// Extension trait to easily register new time types in the `App`.
+pub trait TweenTimePluginExt {
+    /// Adds a new tween time type
+    fn add_tween_time<T: Send + Sync + 'static + Default>(&mut self) -> &mut Self;
+}
+
+impl TweenTimePluginExt for App {
+    fn add_tween_time<T: Send + Sync + 'static + Default>(&mut self) -> &mut Self {
+        self.world_mut().resource_mut::<TweenTime>().register::<T>();
+        self
+    }
+}
 
 use crate::{AnimCompletedEvent, CycleCompletedEvent, TweenAnim, TweenResolver};
 
@@ -25,6 +79,10 @@ pub struct TweeningPlugin;
 impl Plugin for TweeningPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TweenResolver>()
+            .init_resource::<TweenTime>()
+            .add_tween_time::<Virtual>()
+            .add_tween_time::<Fixed>()
+            .add_tween_time::<Real>()
             .add_message::<CycleCompletedEvent>()
             .add_message::<AnimCompletedEvent>()
             .add_systems(
@@ -47,8 +105,8 @@ pub enum AnimationSystem {
 /// This calls [`TweenAnim::step_all()`] using a value of the animation timestep
 /// `delta_time` equal to [`Time::delta()`].
 pub(crate) fn animator_system(world: &mut World) {
-    let delta_time = world.resource::<Time>().delta();
-    TweenAnim::step_all(world, delta_time);
+    let delta_time = TweenTime::get_all(world);
+    TweenAnim::step_all(world, &delta_time);
 }
 
 #[cfg(test)]

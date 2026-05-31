@@ -309,7 +309,7 @@ pub use lens::Lens;
 use lens::{
     TransformRotateAdditiveXLens, TransformRotateAdditiveYLens, TransformRotateAdditiveZLens,
 };
-pub use plugin::{AnimationSystem, TweeningPlugin};
+pub use plugin::{AnimationSystem, TweeningPlugin, TweenTime, TweenTimePluginExt};
 use thiserror::Error;
 pub use tweenable::{
     BoxedTweenable, CycleCompletedEvent, Delay, IntoBoxedTweenable, Sequence, TotalDuration, Tween,
@@ -1954,6 +1954,8 @@ pub struct TweenAnim {
     pub destroy_on_completion: bool,
     /// Current tweening completion state.
     tween_state: TweenState,
+    /// The TypeId of the clock (e.g Virtual, Real) used by this animation.
+    time_type_id: TypeId,
 }
 
 impl TweenAnim {
@@ -1973,6 +1975,12 @@ impl TweenAnim {
     /// to make it typed too.
     #[inline]
     pub fn new(tweenable: impl IntoBoxedTweenable) -> Self {
+        Self::new_timed::<()>(tweenable)
+    }
+
+    #[inline]
+    /// Create a new tween animation that uses a specific game clock.
+    pub fn new_timed<TimeType: 'static>(tweenable: impl IntoBoxedTweenable) -> Self {
         let tweenable = tweenable.into_boxed();
         assert!(
             tweenable.target_type_id().is_some(),
@@ -1984,6 +1992,7 @@ impl TweenAnim {
             speed: 1.,
             destroy_on_completion: true,
             tween_state: TweenState::Active,
+            time_type_id: TypeId::of::<TimeType>(),
         }
     }
 
@@ -2099,11 +2108,13 @@ impl TweenAnim {
     /// [`step_all()`]: Self::step_all
     pub fn step_many(world: &mut World, delta_time: Duration, anims: &[Entity]) -> usize {
         let mut targets = vec![];
+        let mut dt_map = std::collections::HashMap::new();
         world.resource_scope(|world, mut resolver: Mut<TweenResolver>| {
             let mut q_anims = world.query::<(Entity, &TweenAnim, Option<&AnimTarget>)>();
             targets.reserve(anims.len());
             for entity in anims {
                 if let Ok((entity, anim, maybe_target)) = q_anims.get(world, *entity) {
+                    dt_map.insert(anim.time_type_id, delta_time);
                     // Lazy registration with resolver if needed
                     if let Some(anim_target) = maybe_target {
                         anim_target.register(world.components(), &mut resolver);
@@ -2129,7 +2140,9 @@ impl TweenAnim {
                 }
             }
         });
-        Self::step_impl(world, delta_time, &targets[..]);
+        let mut dt_map = HashMap::new();
+        dt_map.insert(TypeId::of::<()>(), delta_time);
+        Self::step_impl(world, &dt_map, &targets[..]);
         targets.len()
     }
 
@@ -2144,7 +2157,7 @@ impl TweenAnim {
     /// time may be useful to force the current animation state to be
     /// applied to a target, in case you made change which do not
     /// automatically do so (for example, retargeting an animation).
-    pub fn step_all(world: &mut World, delta_time: Duration) {
+    pub fn step_all(world: &mut World, delta_time: &HashMap<TypeId, Duration>) {
         let targets = world.resource_scope(|world, mut resolver: Mut<TweenResolver>| {
             let mut q_anims = world.query::<(Entity, &TweenAnim, Option<&AnimTarget>)>();
             q_anims
@@ -2181,7 +2194,7 @@ impl TweenAnim {
                 })
                 .collect::<Vec<_>>()
         });
-        Self::step_impl(world, delta_time, &targets[..]);
+        Self::step_impl(world, &delta_time, &targets[..]);
     }
 
     fn resolve_target(
@@ -2229,7 +2242,7 @@ impl TweenAnim {
 
     fn step_impl(
         world: &mut World,
-        delta_time: Duration,
+        delta_time: &HashMap<TypeId, Duration>,
         anims: &[(Entity, TypeId, ComponentId, AnimTargetKind, bool)],
     ) {
         let mut to_remove = Vec::with_capacity(anims.len());
@@ -2270,10 +2283,11 @@ impl TweenAnim {
                                             // TweenAnim
                                             #[allow(unsafe_code)]
                                             let mut anim = unsafe { anim.with_type::<TweenAnim>() };
+                                            let dt = *delta_time.get(&anim.time_type_id).unwrap();
                                             anim.step_self(
                                                 commands,
                                                 *anim_entity,
-                                                delta_time,
+                                                dt,
                                                 anim_target,
                                                 target,
                                                 target_type_id,
@@ -2295,10 +2309,11 @@ impl TweenAnim {
                                             else {
                                                 continue;
                                             };
+                                            let dt = *delta_time.get(&anim.time_type_id).unwrap_or(&Duration::ZERO);
                                             anim.step_self(
                                                 commands,
                                                 *anim_entity,
-                                                delta_time,
+                                                dt,
                                                 anim_target,
                                                 target,
                                                 target_type_id,
@@ -2332,7 +2347,7 @@ impl TweenAnim {
                                             target_type_id,
                                             *component_id,
                                             *anim_entity,
-                                            delta_time,
+                                            *delta_time.get(&TypeId::of::<()>()).unwrap_or(&Duration::ZERO),
                                             cycle_events.reborrow(),
                                             anim_events.reborrow(),
                                         )
@@ -2349,7 +2364,7 @@ impl TweenAnim {
                                             *component_id,
                                             *asset_id,
                                             *anim_entity,
-                                            delta_time,
+                                            *delta_time.get(&TypeId::of::<()>()).unwrap_or(&Duration::ZERO),
                                             cycle_events.reborrow(),
                                             anim_events.reborrow(),
                                         )
