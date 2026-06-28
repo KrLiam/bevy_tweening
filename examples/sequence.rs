@@ -236,18 +236,12 @@ fn update_text(
     mut q_event_completed: MessageReader<AnimCompletedEvent>,
 ) {
     let anim_red = *q_anim_red;
-    let progress_red = if let Some(anim) = anim_red {
-        anim.tweenable().cycle_fraction()
-    } else {
-        1.
-    };
+    let progress_red =
+        if let Some(anim) = anim_red { anim.tweenable().cycle_fraction() } else { 1. };
 
     let anim_blue = *q_anim_blue;
-    let progress_blue = if let Some(anim) = anim_blue {
-        anim.tweenable().cycle_fraction()
-    } else {
-        1.
-    };
+    let progress_blue =
+        if let Some(anim) = anim_blue { anim.tweenable().cycle_fraction() } else { 1. };
 
     let mut red_text = q_textspans.get_mut(red_text_children[1]).unwrap();
     red_text.0 = format!("{:5.1}%", progress_red * 100.);

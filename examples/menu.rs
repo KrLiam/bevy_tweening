@@ -130,7 +130,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 let tweenable = if start_time_ms > 0 {
                     let delay = Delay::new(Duration::from_millis(start_time_ms));
                     delay.then(tween_scale).into_boxed()
-                } else {
+                }
+                else {
                     tween_scale.into_boxed()
                 };
                 container

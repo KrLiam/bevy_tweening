@@ -155,7 +155,8 @@ impl AnimClock {
             let period = if self.strategy == RepeatStrategy::MirroredRepeat {
                 // ...over 2 cycles if mirrored
                 self.cycle_duration * 2
-            } else {
+            }
+            else {
                 // ...over 1 cycle if not
                 self.cycle_duration
             };
@@ -196,7 +197,8 @@ impl AnimClock {
             let period = if self.strategy == RepeatStrategy::MirroredRepeat {
                 // ...over 2 cycles if mirrored
                 self.cycle_duration * 2
-            } else {
+            }
+            else {
                 // ...over 1 cycle if not
                 self.cycle_duration
             };
@@ -212,11 +214,7 @@ impl AnimClock {
 
             // Common case, just loop once
             debug_assert!(tick < period);
-            next_elapsed = if tick == Duration::ZERO {
-                Duration::ZERO
-            } else {
-                period - tick
-            };
+            next_elapsed = if tick == Duration::ZERO { Duration::ZERO } else { period - tick };
         };
 
         self.set_elapsed(next_elapsed, PlaybackDirection::Backward)
@@ -254,14 +252,16 @@ impl AnimClock {
             if self.elapsed >= total_duration {
                 if self.is_cycle_mirrored(index - 1) {
                     return 0.0;
-                } else {
+                }
+                else {
                     return 1.0;
                 }
             }
         }
         if self.is_cycle_mirrored(index) {
             1.0 - factor
-        } else {
+        }
+        else {
             factor
         }
     }
@@ -272,7 +272,8 @@ impl AnimClock {
     pub fn is_cycle_mirrored(&self, index: u32) -> bool {
         if self.strategy == RepeatStrategy::MirroredRepeat {
             (index & 1) != 0
-        } else {
+        }
+        else {
             false
         }
     }
@@ -299,7 +300,8 @@ impl AnimClock {
                     || (direction.is_backward() && self.elapsed == Duration::ZERO)
                 {
                     TweenState::Completed
-                } else {
+                }
+                else {
                     TweenState::Active
                 }
             }
@@ -323,7 +325,8 @@ impl AnimClock {
                     || (playback_direction.is_backward() && self.elapsed == Duration::ZERO)
                 {
                     TweenState::Completed
-                } else {
+                }
+                else {
                     TweenState::Active
                 }
             }
@@ -398,7 +401,8 @@ impl std::ops::Add for TotalDuration {
 
 impl std::iter::Sum for TotalDuration {
     fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
-        let Some(mut acc) = iter.next() else {
+        let Some(mut acc) = iter.next()
+        else {
             return TotalDuration::Finite(Duration::ZERO);
         };
         for td in iter {
@@ -1037,7 +1041,8 @@ impl Tweenable for Tween {
         // Advance the animation clock
         let (state, times_completed) = if self.playback_direction.is_forward() {
             self.clock.tick(delta)
-        } else {
+        }
+        else {
             self.clock.tick_back(delta)
         };
 
@@ -1240,7 +1245,8 @@ impl Tweenable for Sequence {
                 return (TweenState::Active, retarget);
             }
 
-            let TotalDuration::Finite(total_duration) = tween.total_duration() else {
+            let TotalDuration::Finite(total_duration) = tween.total_duration()
+            else {
                 // Note: Rust can't figure it out, but this can never happen, because infinite
                 // children will always return TweenState::Active. Just add this for safety.
                 return (TweenState::Active, false);
@@ -1341,7 +1347,8 @@ impl Delay {
     pub fn state(&self) -> TweenState {
         if self.is_completed() {
             TweenState::Completed
-        } else {
+        }
+        else {
             TweenState::Active
         }
     }
@@ -1585,7 +1592,8 @@ mod tests {
                         &target_type_id,
                         &mut notify_completed,
                     )
-                } else {
+                }
+                else {
                     (TweenState::Completed, false)
                 }
             },
@@ -1719,12 +1727,15 @@ mod tests {
                                 let (elapsed_ms, state) = if playback_direction.is_forward() {
                                     if i < 5 {
                                         (i * 200i32, TweenState::Active)
-                                    } else {
+                                    }
+                                    else {
                                         (1000i32, TweenState::Completed)
                                     }
-                                } else if i < 5 {
+                                }
+                                else if i < 5 {
                                     (1000i32 - i * 200i32, TweenState::Active)
-                                } else {
+                                }
+                                else {
                                     (0i32, TweenState::Completed)
                                 };
                                 let just_completed = i == 5;
@@ -1742,23 +1753,27 @@ mod tests {
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         // 0.2, 0.4, 0.6, 0.8, 0.0, 0.2, 0.4, ... (x count)
                                         (i * 200) % 1000
-                                    } else {
+                                    }
+                                    else {
                                         // 0.8, 0.6, 0.4, 0.2, 0.0, 0.8, 0.6, ... (x count)
                                         800 - (((i - 1) * 200 - 1000) % 1000 + 1000) % 1000
                                     };
                                     let factor = if i >= 10 {
                                         if playback_direction.is_forward() {
                                             1.0
-                                        } else {
+                                        }
+                                        else {
                                             0.0
                                         }
-                                    } else {
+                                    }
+                                    else {
                                         elapsed_ms as f32 / 1000.0
                                     };
                                     let total_duration_ms = count as i32 * 1000;
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         (i * 200).min(total_duration_ms)
-                                    } else {
+                                    }
+                                    else {
                                         (total_duration_ms - i * 200).max(0)
                                     };
                                     // The test is calibrates such that at i==10 the forward tick
@@ -1766,7 +1781,8 @@ mod tests {
                                     // t=0, both of which yield a Completed state
                                     let state = if i >= 10 {
                                         TweenState::Completed
-                                    } else {
+                                    }
+                                    else {
                                         TweenState::Active
                                     };
                                     (
@@ -1776,7 +1792,8 @@ mod tests {
                                         state,
                                         just_completed,
                                     )
-                                } else {
+                                }
+                                else {
                                     let i5 = i % 5;
                                     let just_completed = i5 == 0;
 
@@ -1785,7 +1802,8 @@ mod tests {
                                         // i    | 1    2    3    4    5    6    7    8    9    10
                                         // t(s) | 0.2  0.4  0.6  0.8  1.0  0.8  0.6  0.4  0.2  0.0
                                         ((i - 5) * 200).rem_euclid(2000) - 1000
-                                    } else {
+                                    }
+                                    else {
                                         // 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0,
                                         // ...
                                         ((i + 5) * 200).rem_euclid(2000) - 1000
@@ -1795,7 +1813,8 @@ mod tests {
                                     // Now clamp to 'count' repeats
                                     let (elapsed_ms, state) = if i < 10 {
                                         (elapsed_ms, TweenState::Active)
-                                    } else {
+                                    }
+                                    else {
                                         (0, TweenState::Completed)
                                     };
                                     let ratio = elapsed_ms as f32 / 1000.;
@@ -1803,7 +1822,8 @@ mod tests {
                                     let total_duration_ms = count as i32 * 1000;
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         (i * 200).min(total_duration_ms)
-                                    } else {
+                                    }
+                                    else {
                                         (total_duration_ms - i * 200).max(0)
                                     };
 
@@ -1814,16 +1834,19 @@ mod tests {
                                         // ffffb bbbbb bb
                                         if i >= 5 {
                                             PlaybackDirection::Backward
-                                        } else {
+                                        }
+                                        else {
                                             PlaybackDirection::Forward
                                         }
-                                    } else {
+                                    }
+                                    else {
                                         //           v [completion]
                                         // 86420 2468X XX
                                         // bbbbb fffff ff
                                         if i <= 5 {
                                             PlaybackDirection::Backward
-                                        } else {
+                                        }
+                                        else {
                                             PlaybackDirection::Forward
                                         }
                                     };
@@ -1837,7 +1860,8 @@ mod tests {
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         // 0.2, 0.4, 0.6, 0.8, 0.0, 0.2, 0.4, ...
                                         (i * 200) % 1000
-                                    } else {
+                                    }
+                                    else {
                                         // 0.8, 0.6, 0.4, 0.2, 0.0, 0.8, 0.6, ...
                                         800 - (((i - 1) * 200 - 1000) % 1000 + 1000) % 1000
                                     };
@@ -1848,12 +1872,14 @@ mod tests {
                                         TweenState::Active,
                                         just_completed,
                                     )
-                                } else {
+                                }
+                                else {
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         // 0.2, 0.4, 0.6, 0.8, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.2,
                                         // 0.4, ...
                                         ((i - 5) * 200).rem_euclid(2000) - 1000
-                                    } else {
+                                    }
+                                    else {
                                         // 0.8, 0.6, 0.4, 0.2, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.8,
                                         // 0.6, ...
                                         (i * 200).rem_euclid(2000) - 1000
@@ -1863,7 +1889,8 @@ mod tests {
                                     let elapsed_ms = if playback_direction.is_forward() {
                                         // 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, ... (seconds)
                                         (i * 200).rem_euclid(2000)
-                                    } else {
+                                    }
+                                    else {
                                         // 0.8, 0.6, 0.4, 0.2, 0.0, 1.8, 1.6, 1.4, ... (seconds)
                                         (2000i32 - (i - 5) * 200).rem_euclid(2000)
                                     };
@@ -1872,15 +1899,18 @@ mod tests {
                                         // ffffb bbbbf ff
                                         if (i % 10) >= 5 {
                                             PlaybackDirection::Backward
-                                        } else {
+                                        }
+                                        else {
                                             PlaybackDirection::Forward
                                         }
-                                    } else {
+                                    }
+                                    else {
                                         // 86420 2468X 86
                                         // bbbbb fffff bb
                                         if ((i - 1) % 10) >= 5 {
                                             PlaybackDirection::Backward
-                                        } else {
+                                        }
+                                        else {
                                             PlaybackDirection::Forward
                                         }
                                     };
@@ -1947,7 +1977,8 @@ mod tests {
                                 };
                                 assert_eq!(*comp_target, entity);
                             }
-                        } else {
+                        }
+                        else {
                             assert!(event.is_none());
                         }
                     }
@@ -1964,7 +1995,8 @@ mod tests {
                     if playback_direction.is_forward() {
                         assert_eq!(tween.elapsed(), Duration::ZERO);
                         assert_eq!(tween.cycles_completed(), 0);
-                    } else {
+                    }
+                    else {
                         assert_eq!(tween.elapsed(), backward_start_time);
                         let cycles_completed = match count {
                             RepeatCount::Infinite => backward_start_time,
@@ -1991,7 +2023,8 @@ mod tests {
                         && strategy != RepeatStrategy::MirroredRepeat
                     {
                         Vec3::ONE
-                    } else {
+                    }
+                    else {
                         Vec3::ZERO
                     };
                     let transform = world.entity(entity).get::<Transform>().unwrap();
@@ -2105,7 +2138,8 @@ mod tests {
                 assert_eq!(state, TweenState::Active);
                 let r = i as f32 * 0.2;
                 assert_approx_eq!(Transform::from_translation(Vec3::splat(r)), *transform);
-            } else if i < 10 {
+            }
+            else if i < 10 {
                 assert_eq!(state, TweenState::Active);
                 let alpha_deg = (18 * (i - 5)) as f32;
                 assert_approx_eq!(Vec3::ONE, transform.translation);
@@ -2113,7 +2147,8 @@ mod tests {
                     Quat::from_rotation_x(alpha_deg.to_radians()),
                     transform.rotation
                 );
-            } else {
+            }
+            else {
                 assert_eq!(state, TweenState::Completed);
                 assert_approx_eq!(Vec3::ONE, transform.translation);
                 assert_approx_eq!(
@@ -2288,7 +2323,8 @@ mod tests {
                     assert!(!delay.is_completed());
                     assert_eq!(0, tweenable.cycles_completed());
                     assert_eq!(dt * i, tweenable.elapsed());
-                } else {
+                }
+                else {
                     assert_eq!(state, TweenState::Completed);
                     assert!(delay.is_completed());
                     assert_eq!(1, tweenable.cycles_completed());
@@ -2336,11 +2372,7 @@ mod tests {
             assert_eq!(ms >= 1000, delay.is_completed());
             assert_eq!(
                 delay.state(),
-                if ms >= 1000 {
-                    TweenState::Completed
-                } else {
-                    TweenState::Active
-                }
+                if ms >= 1000 { TweenState::Completed } else { TweenState::Active }
             );
         }
     }

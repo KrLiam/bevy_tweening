@@ -776,7 +776,8 @@ mod tests {
                 assert!(transform
                     .rotation
                     .abs_diff_eq(Quat::from_xyzw(0., 0., 0., -1.), 1e-5));
-            } else {
+            }
+            else {
                 assert!(transform.rotation.abs_diff_eq(Quat::IDENTITY, 1e-5));
             }
             assert!(transform.scale.abs_diff_eq(Vec3::ONE, 1e-5));
@@ -836,7 +837,8 @@ mod tests {
                 assert!(transform
                     .rotation
                     .abs_diff_eq(Quat::from_xyzw(0., 0., 0., -1.), 1e-5));
-            } else {
+            }
+            else {
                 assert!(transform.rotation.abs_diff_eq(Quat::IDENTITY, 1e-5));
             }
             assert!(transform.scale.abs_diff_eq(Vec3::ONE, 1e-5));
@@ -896,7 +898,8 @@ mod tests {
                 assert!(transform
                     .rotation
                     .abs_diff_eq(Quat::from_xyzw(0., 0., 0., -1.), 1e-5));
-            } else {
+            }
+            else {
                 assert!(transform.rotation.abs_diff_eq(Quat::IDENTITY, 1e-5));
             }
             assert!(transform.scale.abs_diff_eq(Vec3::ONE, 1e-5));
@@ -958,7 +961,8 @@ mod tests {
                 assert!(transform
                     .rotation
                     .abs_diff_eq(Quat::from_xyzw(0., 0., 0., -1.), 1e-5));
-            } else {
+            }
+            else {
                 assert!(transform.rotation.abs_diff_eq(Quat::IDENTITY, 1e-5));
             }
             assert!(transform.scale.abs_diff_eq(Vec3::ONE, 1e-5));

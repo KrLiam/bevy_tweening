@@ -23,10 +23,10 @@ impl TweenTime {
     /// Retrieve the delta time for all registered time types.
     pub fn get_all(world: &mut World) -> HashMap<TypeId, Duration> {
         let tween_time = world.get_resource::<TweenTime>().cloned().unwrap();
-    
+
         let mut deltas = HashMap::new();
 
-        for (type_id, func) in  tween_time.functions {
+        for (type_id, func) in tween_time.functions {
             deltas.insert(type_id, func(world));
         }
 
@@ -35,9 +35,13 @@ impl TweenTime {
 
     /// Register a new time type to be used by animations.
     pub fn register<T: Send + Sync + 'static + Default>(&mut self) {
-        self.functions.insert(TypeId::of::<T>(), |world: &mut World| {
-            world.get_resource::<Time<T>>().map(|t| t.delta()).unwrap_or(Duration::ZERO)
-        });
+        self.functions
+            .insert(TypeId::of::<T>(), |world: &mut World| {
+                world
+                    .get_resource::<Time<T>>()
+                    .map(|t| t.delta())
+                    .unwrap_or(Duration::ZERO)
+            });
     }
 }
 

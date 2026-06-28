@@ -309,7 +309,7 @@ pub use lens::Lens;
 use lens::{
     TransformRotateAdditiveXLens, TransformRotateAdditiveYLens, TransformRotateAdditiveZLens,
 };
-pub use plugin::{AnimationSystem, TweeningPlugin, TweenTime, TweenTimePluginExt};
+pub use plugin::{AnimationSystem, TweenTime, TweenTimePluginExt, TweeningPlugin};
 use thiserror::Error;
 pub use tweenable::{
     BoxedTweenable, CycleCompletedEvent, Delay, IntoBoxedTweenable, Sequence, TotalDuration, Tween,
@@ -466,7 +466,8 @@ impl EaseMethod {
             Self::Discrete(limit) => {
                 if x > limit {
                     1.
-                } else {
+                }
+                else {
                     0.
                 }
             }
@@ -2056,7 +2057,8 @@ impl TweenAnim {
         let num = Self::step_many(world, delta_time, &[entity]);
         if num > 0 {
             Ok(())
-        } else {
+        }
+        else {
             Err(TweeningError::EntityNotFound(entity))
         }
     }
@@ -2221,7 +2223,8 @@ impl TweenAnim {
             };
             let is_retargetable = false; // explicit target
             Ok((type_id, component_id, target.kind, is_retargetable))
-        } else {
+        }
+        else {
             // Target implicitly self; this can only be a component target
             let is_retargetable = true;
             if let Some(component_id) = components.get_id(type_id) {
@@ -2233,7 +2236,8 @@ impl TweenAnim {
                     },
                     is_retargetable,
                 ))
-            } else {
+            }
+            else {
                 // We can't implicitly target an asset without its AssetId
                 Err(TweeningError::ComponentNotRegistered(type_id))
             }
@@ -2752,7 +2756,8 @@ impl TweenResolver {
         cycle_events: Mut<Messages<CycleCompletedEvent>>,
         anim_events: Mut<Messages<AnimCompletedEvent>>,
     ) -> Result<bool, TweeningError> {
-        let Some(resolver) = self.resource_resolver.get(&resource_id) else {
+        let Some(resolver) = self.resource_resolver.get(&resource_id)
+        else {
             println!("ERROR: resource not registered {:?}", resource_id);
             return Err(TweeningError::AssetResolverNotRegistered(resource_id));
         };
@@ -2779,7 +2784,8 @@ impl TweenResolver {
         cycle_events: Mut<Messages<CycleCompletedEvent>>,
         anim_events: Mut<Messages<AnimCompletedEvent>>,
     ) -> Result<bool, TweeningError> {
-        let Some(resolver) = self.asset_resolver.get(&resource_id) else {
+        let Some(resolver) = self.asset_resolver.get(&resource_id)
+        else {
             println!("ERROR: asset not registered {:?}", resource_id);
             return Err(TweeningError::AssetResolverNotRegistered(resource_id));
         };

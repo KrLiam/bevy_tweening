@@ -117,7 +117,9 @@ macro_rules! assert_approx_eq {
 
 pub(crate) use assert_approx_eq;
 
-use crate::{AnimCompletedEvent, CycleCompletedEvent, TweenAnim, TweenResolver, TweenTime, Tweenable};
+use crate::{
+    AnimCompletedEvent, CycleCompletedEvent, TweenAnim, TweenResolver, TweenTime, Tweenable,
+};
 
 /// A simple isolated test environment with a [`World`] and a single
 /// [`Entity`] in it.

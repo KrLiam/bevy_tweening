@@ -117,7 +117,8 @@ fn follow(
     q_camera: Single<(&GlobalTransform, &Camera)>,
     mut q_anim: Single<(Entity, &Anim, &mut TweenAnim)>,
 ) {
-    let Some(ev) = message_reader.read().last() else {
+    let Some(ev) = message_reader.read().last()
+    else {
         return;
     };
     let (camera_transform, camera) = *q_camera;
