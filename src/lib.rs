@@ -141,10 +141,28 @@
 //! Unlike previous versions of 🍃 Bevy Tweening, **you don't need any
 //! particular system setup** aside from adding the [`TweeningPlugin`] to your
 //! [`App`]. In particular, per-component-type and per-asset-type systems are
-//! gone. Instead, the plugin adds a _single_ system executing during the
-//! [`Update`] schedule, which calls [`TweenAnim::step_all()`]. Each
-//! [`TweenAnim`] acts as a controller for one animation, and mutates its
-//! target.
+//! gone. Instead, the plugin adds generic systems which step all animations,
+//! with one system per [clock](#clocks). Each [`TweenAnim`] acts as a controller
+//! for one animation, and mutates its target.
+//!
+//! # Clocks
+//!
+//! Animations are stepped by the generic [`Time`] clock by default, which
+//! is the [`Virtual`] clock by default (since tweens are stepped on the [`Update`] schedule).
+//! Add a [`TweenClock`] component to the entity owning the [`TweenAnim`] to use
+//! another clock. This is useful for example to keep animating a UI while the game is paused:
+//!
+//! ```ignore
+//! commands.spawn((
+//!     Transform::default(),
+//!     TweenAnim::new(...),
+//!     TweenClock::<Real>::default(),
+//! ));
+//! ```
+//!
+//! The [`Virtual`], [`Real`] and [`Fixed`] clocks are always available. Register
+//! custom clocks on the [`App`] e.g
+//! [`app.add_tween_clock::<CustomClock>()`](TweenTimePluginExt::add_tween_clock).
 //!
 //! # Tweenables
 //!
@@ -301,6 +319,7 @@ use bevy::{
     ecs::{
         change_detection::{MaybeLocation, MutUntyped, Tick},
         component::{ComponentId, Components, Mutable},
+        query::QueryFilter,
     },
     platform::collections::HashMap,
     prelude::*,
@@ -311,18 +330,20 @@ use lens::{
 };
 pub use plugin::{AnimationSystem, TweeningPlugin};
 use thiserror::Error;
+pub use time::{TweenClock, TweenTimePluginExt};
 pub use tweenable::{
     BoxedTweenable, CycleCompletedEvent, Delay, IntoBoxedTweenable, Sequence, TotalDuration, Tween,
     TweenState, Tweenable,
 };
 
 use crate::{
-    lens::{TransformPositionLens, TransformScaleLens}, time::DeltaTime, tweenable::TweenConfig,
+    lens::{TransformPositionLens, TransformScaleLens},
+    tweenable::TweenConfig,
 };
 
 pub mod lens;
-pub mod time;
 mod plugin;
+mod time;
 mod tweenable;
 
 #[cfg(test)]
@@ -1964,13 +1985,10 @@ pub struct TweenAnim {
     pub destroy_on_completion: bool,
     /// Current tweening completion state.
     tween_state: TweenState,
-    /// The TypeId of the clock (e.g Virtual, Real) used by this animation.
-    time_type_id: TypeId,
 }
 
 impl TweenAnim {
-    /// Create a new tween animation. It's equivalent to [`TweenAnim::new_timed<()>()`]
-    /// which plays the tweenable based on the default clock (`Virtual`).
+    /// Create a new tween animation.
     ///
     /// This component represents the runtime animation being played to mutate a
     /// specific target.
@@ -1986,25 +2004,6 @@ impl TweenAnim {
     /// to make it typed too.
     #[inline]
     pub fn new(tweenable: impl IntoBoxedTweenable) -> Self {
-        Self::new_timed::<()>(tweenable)
-    }
-
-    #[inline]
-    /// Create a new tween animation that uses a specific clock e.g `Virtual`, `Real`.
-    ///
-    /// This component represents the runtime animation being played to mutate a
-    /// specific target.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the tweenable is "typeless", that is
-    /// [`Tweenable::target_type_id()`] returns `None`. Animations must
-    /// target a concrete component or asset type. This means in particular
-    /// that you can't use a single [`Delay`] alone. You can however use a
-    /// [`Delay`] or other typeless tweenables as part of a [`Sequence`],
-    /// provided there's at least one other typed tweenable in the sequence
-    /// to make it typed too.
-    pub fn new_timed<TimeType: 'static>(tweenable: impl IntoBoxedTweenable) -> Self {
         let tweenable = tweenable.into_boxed();
         assert!(
             tweenable.target_type_id().is_some(),
@@ -2016,7 +2015,6 @@ impl TweenAnim {
             speed: 1.,
             destroy_on_completion: true,
             tween_state: TweenState::Active,
-            time_type_id: TypeId::of::<TimeType>(),
         }
     }
 
@@ -2129,8 +2127,11 @@ impl TweenAnim {
     /// Returns the number of [`TweenAnim`] component found and stepped, which
     /// is always less than or equal to the input `anims` slice length.
     ///
+    /// All animations are stepped by the same `delta_time`, regardless of any
+    /// [`TweenClock`] they have.
+    ///
     /// [`step_all()`]: Self::step_all
-    pub fn step_many(world: &mut World, delta_time: impl Into<DeltaTime>, anims: &[Entity]) -> usize {
+    pub fn step_many(world: &mut World, delta_time: Duration, anims: &[Entity]) -> usize {
         let mut targets = vec![];
         world.resource_scope(|world, mut resolver: Mut<TweenResolver>| {
             let mut q_anims = world.query::<(Entity, &TweenAnim, Option<&AnimTarget>)>();
@@ -2177,9 +2178,18 @@ impl TweenAnim {
     /// time may be useful to force the current animation state to be
     /// applied to a target, in case you made change which do not
     /// automatically do so (for example, retargeting an animation).
-    pub fn step_all(world: &mut World, delta_time: impl Into<DeltaTime>) {
+    ///
+    /// This steps all animations by the same `delta_time`, regardless of any
+    /// [`TweenClock`] they have.
+    pub fn step_all(world: &mut World, delta_time: Duration) {
+        Self::step_filtered::<()>(world, delta_time);
+    }
+
+    /// Step the animations selected by a query filter `F`.
+    pub(crate) fn step_filtered<F: QueryFilter>(world: &mut World, delta_time: Duration) {
         let targets = world.resource_scope(|world, mut resolver: Mut<TweenResolver>| {
-            let mut q_anims = world.query::<(Entity, &TweenAnim, Option<&AnimTarget>)>();
+            let mut q_anims =
+                world.query_filtered::<(Entity, &TweenAnim, Option<&AnimTarget>), F>();
             q_anims
                 .iter(world)
                 .filter_map(|(entity, anim, maybe_target)| {
@@ -2262,12 +2272,9 @@ impl TweenAnim {
 
     fn step_impl(
         world: &mut World,
-        delta_time: impl Into<DeltaTime>,
+        delta_time: Duration,
         anims: &[(Entity, TypeId, ComponentId, AnimTargetKind, bool)],
     ) {
-        let delta_time = delta_time.into();
-        let default_delta = delta_time.get(&TypeId::of::<()>()).unwrap_or(&Duration::ZERO);
-
         let mut to_remove = Vec::with_capacity(anims.len());
         world.resource_scope(|world, resolver: Mut<TweenResolver>| {
             world.resource_scope(
@@ -2306,11 +2313,10 @@ impl TweenAnim {
                                             // TweenAnim
                                             #[allow(unsafe_code)]
                                             let mut anim = unsafe { anim.with_type::<TweenAnim>() };
-                                            let dt = *delta_time.get(&anim.time_type_id).unwrap_or(&default_delta);
                                             anim.step_self(
                                                 commands,
                                                 *anim_entity,
-                                                dt,
+                                                delta_time,
                                                 anim_target,
                                                 target,
                                                 target_type_id,
@@ -2332,11 +2338,10 @@ impl TweenAnim {
                                             else {
                                                 continue;
                                             };
-                                            let dt = *delta_time.get(&anim.time_type_id).unwrap_or(&default_delta);
                                             anim.step_self(
                                                 commands,
                                                 *anim_entity,
-                                                dt,
+                                                delta_time,
                                                 anim_target,
                                                 target,
                                                 target_type_id,
@@ -2370,7 +2375,7 @@ impl TweenAnim {
                                             target_type_id,
                                             *component_id,
                                             *anim_entity,
-                                            *default_delta,
+                                            delta_time,
                                             cycle_events.reborrow(),
                                             anim_events.reborrow(),
                                         )
@@ -2387,7 +2392,7 @@ impl TweenAnim {
                                             *component_id,
                                             *asset_id,
                                             *anim_entity,
-                                            *default_delta,
+                                            delta_time,
                                             cycle_events.reborrow(),
                                             anim_events.reborrow(),
                                         )

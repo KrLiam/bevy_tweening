@@ -29,3 +29,8 @@ bench = false
 name = "lens"
 path = "benches/lens.rs"
 harness = false
+
+[[bench]]
+name = "clock"
+path = "benches/clock.rs"
+harness = false
